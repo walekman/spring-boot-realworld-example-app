@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.netflix.graphql.dgs.DgsDataFetchingEnvironment;
 import graphql.execution.DataFetcherResult;
 import io.spring.api.exception.ResourceNotFoundException;
 import io.spring.application.ArticleQueryService;
@@ -19,6 +21,7 @@ import io.spring.core.user.User;
 import io.spring.core.user.UserRepository;
 import io.spring.graphql.types.Article;
 import io.spring.graphql.types.ArticlesConnection;
+import io.spring.graphql.types.Profile;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -152,6 +155,120 @@ class ArticleDatafetcherTest {
 
     DataFetcherResult<ArticlesConnection> result =
         articleDatafetcher.getFeed(10, null, null, null, null);
+
+    assertEquals(0, result.getData().getEdges().size());
+  }
+
+  private Profile sampleProfile() {
+    return Profile.newBuilder().username("testuser").build();
+  }
+
+  private DgsDataFetchingEnvironment buildProfileDfe(Profile profile) {
+    DgsDataFetchingEnvironment dfe = mock(DgsDataFetchingEnvironment.class);
+    when(dfe.getSource()).thenReturn(profile);
+    return dfe;
+  }
+
+  @Test
+  void should_throw_when_both_first_and_last_are_null_for_user_feed() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> articleDatafetcher.userFeed(null, null, null, null, null));
+  }
+
+  @Test
+  void should_get_user_feed_using_first() {
+    User user = new User("u@test.com", "testuser", "pass", "", "");
+    when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+    when(articleQueryService.findUserFeedWithCursor(eq(user), any())).thenReturn(singleNextPager());
+
+    DataFetcherResult<ArticlesConnection> result =
+        articleDatafetcher.userFeed(10, null, null, null, buildProfileDfe(sampleProfile()));
+
+    assertEquals(1, result.getData().getEdges().size());
+    assertEquals("test-slug", result.getData().getEdges().get(0).getNode().getSlug());
+  }
+
+  @Test
+  void should_get_user_feed_using_last() {
+    User user = new User("u@test.com", "testuser", "pass", "", "");
+    when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
+    when(articleQueryService.findUserFeedWithCursor(eq(user), any()))
+        .thenReturn(new CursorPager<>(Collections.emptyList(), Direction.PREV, false));
+
+    DataFetcherResult<ArticlesConnection> result =
+        articleDatafetcher.userFeed(null, null, 5, null, buildProfileDfe(sampleProfile()));
+
+    assertEquals(0, result.getData().getEdges().size());
+  }
+
+  @Test
+  void should_throw_not_found_when_profile_user_not_found_for_user_feed() {
+    when(userRepository.findByUsername("testuser")).thenReturn(Optional.empty());
+
+    assertThrows(
+        ResourceNotFoundException.class,
+        () -> articleDatafetcher.userFeed(10, null, null, null, buildProfileDfe(sampleProfile())));
+  }
+
+  @Test
+  void should_throw_when_both_first_and_last_are_null_for_user_favorites() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> articleDatafetcher.userFavorites(null, null, null, null, null));
+  }
+
+  @Test
+  void should_get_user_favorites_using_first() {
+    when(articleQueryService.findRecentArticlesWithCursor(
+            isNull(), isNull(), eq("testuser"), any(), isNull()))
+        .thenReturn(singleNextPager());
+
+    DataFetcherResult<ArticlesConnection> result =
+        articleDatafetcher.userFavorites(10, null, null, null, buildProfileDfe(sampleProfile()));
+
+    assertEquals(1, result.getData().getEdges().size());
+  }
+
+  @Test
+  void should_get_user_favorites_using_last() {
+    when(articleQueryService.findRecentArticlesWithCursor(
+            isNull(), isNull(), eq("testuser"), any(), isNull()))
+        .thenReturn(new CursorPager<>(Collections.emptyList(), Direction.PREV, false));
+
+    DataFetcherResult<ArticlesConnection> result =
+        articleDatafetcher.userFavorites(null, null, 5, null, buildProfileDfe(sampleProfile()));
+
+    assertEquals(0, result.getData().getEdges().size());
+  }
+
+  @Test
+  void should_throw_when_both_first_and_last_are_null_for_user_articles() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> articleDatafetcher.userArticles(null, null, null, null, null));
+  }
+
+  @Test
+  void should_get_user_articles_using_first() {
+    when(articleQueryService.findRecentArticlesWithCursor(
+            isNull(), eq("testuser"), isNull(), any(), isNull()))
+        .thenReturn(singleNextPager());
+
+    DataFetcherResult<ArticlesConnection> result =
+        articleDatafetcher.userArticles(10, null, null, null, buildProfileDfe(sampleProfile()));
+
+    assertEquals(1, result.getData().getEdges().size());
+  }
+
+  @Test
+  void should_get_user_articles_using_last() {
+    when(articleQueryService.findRecentArticlesWithCursor(
+            isNull(), eq("testuser"), isNull(), any(), isNull()))
+        .thenReturn(new CursorPager<>(Collections.emptyList(), Direction.PREV, false));
+
+    DataFetcherResult<ArticlesConnection> result =
+        articleDatafetcher.userArticles(null, null, 5, null, buildProfileDfe(sampleProfile()));
 
     assertEquals(0, result.getData().getEdges().size());
   }

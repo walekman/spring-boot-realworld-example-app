@@ -61,6 +61,17 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+jacocoTestReport {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                'io/spring/application/data/**',
+                'io/spring/graphql/types/**'
+            ])
+        }))
+    }
+}
+
 tasks.named('clean') {
     doFirst {
         delete './dev.db'
