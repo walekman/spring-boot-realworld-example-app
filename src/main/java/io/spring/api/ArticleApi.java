@@ -57,7 +57,7 @@ public class ArticleApi {
                   articleCommandService.updateArticle(article, updateArticleParam);
               return ResponseEntity.ok(
                   articleResponse(
-                      articleQueryService.findBySlug(updatedArticle.getSlug(), user).get()));
+                      articleQueryService.findBySlug(updatedArticle.getSlug(), user).orElseThrow(ResourceNotFoundException::new)));
             })
         .orElseThrow(ResourceNotFoundException::new);
   }

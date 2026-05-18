@@ -1,5 +1,6 @@
 package io.spring.api;
 
+import io.spring.api.exception.ResourceNotFoundException;
 import io.spring.application.ArticleQueryService;
 import io.spring.application.Page;
 import io.spring.application.article.ArticleCommandService;
@@ -32,7 +33,7 @@ public class ArticlesApi {
     return ResponseEntity.ok(
         new HashMap<String, Object>() {
           {
-            put("article", articleQueryService.findById(article.getId(), user).get());
+            put("article", articleQueryService.findById(article.getId(), user).orElseThrow(ResourceNotFoundException::new));
           }
         });
   }

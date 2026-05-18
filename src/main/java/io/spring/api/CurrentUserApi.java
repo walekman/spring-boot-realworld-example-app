@@ -1,5 +1,6 @@
 package io.spring.api;
 
+import io.spring.api.exception.ResourceNotFoundException;
 import io.spring.application.UserQueryService;
 import io.spring.application.data.UserData;
 import io.spring.application.data.UserWithToken;
@@ -32,7 +33,7 @@ public class CurrentUserApi {
   public ResponseEntity currentUser(
       @AuthenticationPrincipal User currentUser,
       @RequestHeader(value = "Authorization") String authorization) {
-    UserData userData = userQueryService.findById(currentUser.getId()).get();
+    UserData userData = userQueryService.findById(currentUser.getId()).orElseThrow(ResourceNotFoundException::new);
     return ResponseEntity.ok(
         userResponse(new UserWithToken(userData, authorization.split(" ")[1])));
   }
@@ -44,7 +45,7 @@ public class CurrentUserApi {
       @Valid @RequestBody UpdateUserParam updateUserParam) {
 
     userService.updateUser(new UpdateUserCommand(currentUser, updateUserParam));
-    UserData userData = userQueryService.findById(currentUser.getId()).get();
+    UserData userData = userQueryService.findById(currentUser.getId()).orElseThrow(ResourceNotFoundException::new);
     return ResponseEntity.ok(userResponse(new UserWithToken(userData, token.split(" ")[1])));
   }
 

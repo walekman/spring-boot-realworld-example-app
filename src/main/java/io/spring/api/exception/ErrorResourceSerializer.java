@@ -13,7 +13,7 @@ import java.util.Map;
 public class ErrorResourceSerializer extends JsonSerializer<ErrorResource> {
   @Override
   public void serialize(ErrorResource value, JsonGenerator gen, SerializerProvider serializers)
-      throws IOException, JsonProcessingException {
+      throws IOException {
     Map<String, List<String>> json = new HashMap<>();
     gen.writeStartObject();
     gen.writeObjectFieldStart("errors");
@@ -25,15 +25,9 @@ public class ErrorResourceSerializer extends JsonSerializer<ErrorResource> {
     }
     for (Map.Entry<String, List<String>> pair : json.entrySet()) {
       gen.writeArrayFieldStart(pair.getKey());
-      pair.getValue()
-          .forEach(
-              content -> {
-                try {
-                  gen.writeString(content);
-                } catch (IOException e) {
-                  e.printStackTrace();
-                }
-              });
+      for (String content : pair.getValue()) {
+        gen.writeString(content);
+      }
       gen.writeEndArray();
     }
     gen.writeEndObject();
