@@ -227,4 +227,93 @@ public class ArticleQueryServiceTest extends DbTestBase {
     ArticleData articleData = anotherUserFeed.getArticleDatas().get(0);
     Assertions.assertTrue(articleData.getProfileData().isFollowing());
   }
+
+  @Test
+  public void should_return_empty_when_article_id_not_found() {
+    Optional<ArticleData> result = queryService.findById("nonexistent-id", user);
+    Assertions.assertFalse(result.isPresent());
+  }
+
+  @Test
+  public void should_return_empty_when_slug_not_found() {
+    Optional<ArticleData> result = queryService.findBySlug("nonexistent-slug", user);
+    Assertions.assertFalse(result.isPresent());
+  }
+
+  @Test
+  public void should_return_article_when_user_is_null() {
+    Optional<ArticleData> result = queryService.findById(article.getId(), null);
+    Assertions.assertTrue(result.isPresent());
+    Assertions.assertFalse(result.get().isFavorited());
+    Assertions.assertFalse(result.get().getProfileData().isFollowing());
+  }
+
+  @Test
+  public void should_return_has_next_when_cursor_articles_exceed_limit() {
+    Article olderArticle =
+        new Article(
+            "older article", "desc", "body", Arrays.asList("java"), user.getId(),
+            new DateTime().minusHours(1));
+    articleRepository.save(olderArticle);
+
+    CursorPager<ArticleData> result =
+        queryService.findRecentArticlesWithCursor(
+            null, null, null, new CursorPageParameter<>(null, 1, Direction.NEXT), user);
+
+    Assertions.assertEquals(1, result.getData().size());
+    Assertions.assertTrue(result.hasNext());
+    Assertions.assertFalse(result.hasPrevious());
+  }
+
+  @Test
+  public void should_return_empty_feed_cursor_when_user_has_no_follows() {
+    CursorPager<ArticleData> result =
+        queryService.findUserFeedWithCursor(
+            user, new CursorPageParameter<>(null, 20, Direction.NEXT));
+
+    Assertions.assertTrue(result.getData().isEmpty());
+    Assertions.assertFalse(result.hasNext());
+    Assertions.assertFalse(result.hasPrevious());
+  }
+
+  @Test
+  public void should_get_user_feed_with_cursor() {
+    User follower = new User("follower@test.com", "follower", "123", "", "");
+    userRepository.save(follower);
+    userRepository.saveRelation(new FollowRelation(follower.getId(), user.getId()));
+
+    CursorPager<ArticleData> result =
+        queryService.findUserFeedWithCursor(
+            follower, new CursorPageParameter<>(null, 20, Direction.NEXT));
+
+    Assertions.assertEquals(1, result.getData().size());
+    Assertions.assertFalse(result.hasNext());
+    Assertions.assertTrue(result.getData().get(0).getProfileData().isFollowing());
+  }
+
+  @Test
+  public void should_return_feed_cursor_has_next_when_exceeds_limit() {
+    // Use a separate author so both articles have exactly 1 tag each — avoids the pre-existing
+    // bug where findArticlesOfAuthorsWithCursor applies LIMIT to raw rows (before tag-JOIN
+    // aggregation), which would cause articles with multiple tags to consume extra LIMIT slots.
+    User author = new User("author@test.com", "author", "123", "", "");
+    userRepository.save(author);
+
+    User follower = new User("follower2@test.com", "follower2", "123", "", "");
+    userRepository.save(follower);
+    userRepository.saveRelation(new FollowRelation(follower.getId(), author.getId()));
+
+    articleRepository.save(
+        new Article("article one", "desc", "body", Arrays.asList("java"), author.getId(), new DateTime()));
+    articleRepository.save(
+        new Article("article two", "desc", "body", Arrays.asList("spring"), author.getId(),
+            new DateTime().minusHours(1)));
+
+    CursorPager<ArticleData> result =
+        queryService.findUserFeedWithCursor(
+            follower, new CursorPageParameter<>(null, 1, Direction.NEXT));
+
+    Assertions.assertEquals(1, result.getData().size());
+    Assertions.assertTrue(result.hasNext());
+  }
 }

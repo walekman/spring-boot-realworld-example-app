@@ -1,6 +1,9 @@
 package io.spring.application.comment;
 
 import io.spring.application.CommentQueryService;
+import io.spring.application.CursorPageParameter;
+import io.spring.application.CursorPager;
+import io.spring.application.CursorPager.Direction;
 import io.spring.application.data.CommentData;
 import io.spring.core.article.Article;
 import io.spring.core.article.ArticleRepository;
@@ -72,5 +75,99 @@ public class CommentQueryServiceTest extends DbTestBase {
 
     List<CommentData> comments = commentQueryService.findByArticleId(article.getId(), user);
     Assertions.assertEquals(comments.size(), 2);
+  }
+
+  @Test
+  public void should_return_empty_when_comment_not_found() {
+    Optional<CommentData> result = commentQueryService.findById("nonexistent-id", user);
+    Assertions.assertFalse(result.isPresent());
+  }
+
+  @Test
+  public void should_return_empty_list_when_article_has_no_comments() {
+    Article article = new Article("title", "desc", "body", Arrays.asList("java"), user.getId());
+    articleRepository.save(article);
+
+    List<CommentData> comments = commentQueryService.findByArticleId(article.getId(), user);
+    Assertions.assertTrue(comments.isEmpty());
+  }
+
+  @Test
+  public void should_return_comments_when_user_is_null() {
+    Article article = new Article("title", "desc", "body", Arrays.asList("java"), user.getId());
+    articleRepository.save(article);
+    Comment comment = new Comment("content", user.getId(), article.getId());
+    commentRepository.save(comment);
+
+    List<CommentData> comments = commentQueryService.findByArticleId(article.getId(), null);
+    Assertions.assertEquals(1, comments.size());
+    Assertions.assertFalse(comments.get(0).getProfileData().isFollowing());
+  }
+
+  @Test
+  public void should_return_empty_cursor_pager_when_no_comments() {
+    Article article = new Article("title", "desc", "body", Arrays.asList("java"), user.getId());
+    articleRepository.save(article);
+
+    CursorPager<CommentData> result =
+        commentQueryService.findByArticleIdWithCursor(
+            article.getId(), user, new CursorPageParameter<>(null, 20, Direction.NEXT));
+
+    Assertions.assertTrue(result.getData().isEmpty());
+    Assertions.assertFalse(result.hasNext());
+    Assertions.assertFalse(result.hasPrevious());
+  }
+
+  @Test
+  public void should_return_comment_cursor_pager_with_following_info() {
+    Article article = new Article("title", "desc", "body", Arrays.asList("java"), user.getId());
+    articleRepository.save(article);
+
+    User follower = new User("follower@test.com", "follower", "123", "", "");
+    userRepository.save(follower);
+    userRepository.saveRelation(new FollowRelation(follower.getId(), user.getId()));
+
+    Comment comment = new Comment("content", user.getId(), article.getId());
+    commentRepository.save(comment);
+
+    CursorPager<CommentData> result =
+        commentQueryService.findByArticleIdWithCursor(
+            article.getId(), follower, new CursorPageParameter<>(null, 20, Direction.NEXT));
+
+    Assertions.assertEquals(1, result.getData().size());
+    Assertions.assertTrue(result.getData().get(0).getProfileData().isFollowing());
+    Assertions.assertFalse(result.hasNext());
+  }
+
+  @Test
+  public void should_return_has_next_when_comments_exceed_limit() {
+    Article article = new Article("title", "desc", "body", Arrays.asList("java"), user.getId());
+    articleRepository.save(article);
+    commentRepository.save(new Comment("first", user.getId(), article.getId()));
+    commentRepository.save(new Comment("second", user.getId(), article.getId()));
+
+    CursorPager<CommentData> result =
+        commentQueryService.findByArticleIdWithCursor(
+            article.getId(), user, new CursorPageParameter<>(null, 1, Direction.NEXT));
+
+    Assertions.assertEquals(1, result.getData().size());
+    Assertions.assertTrue(result.hasNext());
+    Assertions.assertFalse(result.hasPrevious());
+  }
+
+  @Test
+  public void should_return_has_previous_when_comments_exceed_limit_prev() {
+    Article article = new Article("title", "desc", "body", Arrays.asList("java"), user.getId());
+    articleRepository.save(article);
+    commentRepository.save(new Comment("first", user.getId(), article.getId()));
+    commentRepository.save(new Comment("second", user.getId(), article.getId()));
+
+    CursorPager<CommentData> result =
+        commentQueryService.findByArticleIdWithCursor(
+            article.getId(), user, new CursorPageParameter<>(null, 1, Direction.PREV));
+
+    Assertions.assertEquals(1, result.getData().size());
+    Assertions.assertTrue(result.hasPrevious());
+    Assertions.assertFalse(result.hasNext());
   }
 }
