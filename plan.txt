@@ -1,0 +1,183 @@
+SPRING BOOT REALWORLD APP - REFACTORING PLAN
+=============================================
+Generated: 2026-05-18
+
+=====================================
+CRITICAL (fix before any production use)
+=====================================
+
+C1 | Unsafe `.get()` on Optional
+     Files: ArticlesApi.java:35, UsersApi.java:42,52, CurrentUserApi.java:35,47,
+            ArticleApi.java:60, CommentsApi.java:50
+     Problem: Throws NoSuchElementException on empty Optional
+     Fix: Use orElseThrow()
+
+C2 | Hardcoded JWT secret
+     File: application.properties:9
+     Problem: Credential committed to version control
+     Fix: Move to environment variable (JWT_SECRET)
+
+C3 | Swallowed IOException
+     File: ErrorResourceSerializer.java:31-35
+     Problem: e.printStackTrace() silently loses serialization failures
+     Fix: Use SLF4J log.error() and rethrow
+
+=====================================
+HIGH
+=====================================
+
+H1 | Deprecated WebSecurityConfigurerAdapter
+     File: WebSecurityConfig.java:11-23
+     Problem: Removed in Spring Security 6
+     Fix: Migrate to SecurityFilterChain bean
+
+H2 | @Transactional missing from service layer
+     Files: UserService.java, ArticleCommandService.java
+     Problem: Write operations not atomic - data integrity risk
+     Fix: Add @Transactional to all write service methods
+
+H3 | CORS allows "*"
+     File: WebSecurityConfig.java:70
+     Problem: All origins permitted
+     Fix: Restrict to known origins via application.properties
+
+H4 | No request size limits
+     File: application.properties
+     Problem: Susceptible to large-payload DoS
+     Fix: Add server.tomcat.max-http-post-size
+
+=====================================
+MEDIUM
+=====================================
+
+M1 | Anonymous HashMap response objects
+     Files: ArticlesApi.java:32-37, UsersApi.java:60-66, ArticleApi.java:81-87, etc.
+     Problem: Double-brace init anti-pattern
+     Fix: Create proper response DTOs
+
+M2 | Field injection in validators/filter
+     Files: DuplicatedEmailValidator.java:11, JwtTokenFilter.java:20-21
+     Problem: Hides dependencies, breaks testability
+     Fix: Use constructor injection
+
+M3 | N+1 queries in fillExtraInfo()
+     File: ArticleQueryService.java:125-183
+     Problem: Per-article DB round-trips
+     Fix: Batch queries or JOIN
+
+M4 | Optional misuse in query services
+     Files: ArticleQueryService.java:30-52, CommentQueryService.java:23-35
+     Problem: Null-check + .get() defeats Optional's purpose
+     Fix: Use Optional.ofNullable()
+
+M5 | Exception classes carry no message
+     Files: ResourceNotFoundException.java, NoAuthorizationException.java
+     Problem: No context on failure
+     Fix: Add message constructors
+
+M6 | Inconsistent @Component vs @Service/@Repository
+     Files: ProfileQueryService.java:12, MyBatisCommentRepository.java:10
+     Problem: Loses exception translation and semantic clarity
+     Fix: Use correct stereotype annotations
+
+M7 | Split/fragmented pagination
+     Files: Page.java, CursorPageParameter.java, CursorPager.java
+     Problem: Two pagination systems, neither DRY
+     Fix: Unify pagination abstraction
+
+M8 | No Spring Actuator
+     File: build.gradle
+     Problem: No health, metrics, or liveness endpoints
+     Fix: Add spring-boot-starter-actuator
+
+M9 | Spring Boot 2.6.3 (outdated)
+     File: build.gradle:2
+     Problem: Missing security patches; many APIs deprecated
+     Fix: Plan upgrade to Spring Boot 3.x
+
+M10 | Test DB differs from prod
+      File: application-test.properties
+      Problem: SQLite in-memory vs file-based - tests don't reflect production
+      Fix: Use same database type in both environments
+
+=====================================
+LOW
+=====================================
+
+L1 | Joda-Time instead of java.time
+     Files: All entity files
+     Problem: Legacy dependency
+     Fix: Migrate to LocalDateTime/ZonedDateTime
+
+L2 | UUID generated in entity constructor
+     Files: User.java:21, Article.java:40, Comment.java:20
+     Problem: Hard to control in tests
+     Fix: Extract ID generation
+
+L3 | Util.java duplicates String.isBlank()
+     File: Util.java
+     Problem: Unnecessary class; Java 11 has this natively
+     Fix: Remove and inline String.isBlank()
+
+L4 | Magic number 100 for max page limit
+     File: Page.java:9
+     Problem: Unexplained magic number
+     Fix: Extract as named constant
+
+L5 | No JaCoCo / test coverage config
+     File: build.gradle
+     Problem: Can't track coverage over time
+     Fix: Add JaCoCo plugin
+
+L6 | Hardcoded debug logging levels
+     File: application.properties:19-20
+     Problem: Can't override per-environment without code change
+     Fix: Use environment-specific properties
+
+=====================================
+REFACTORING PHASES
+=====================================
+
+PHASE 1 - Security & Stability (1-2 days)
+------------------------------------------
+1. [C2] Externalize JWT secret to env var (JWT_SECRET)
+2. [C1] Replace all .get() with .orElseThrow(ResourceNotFoundException::new)
+3. [C3] Replace printStackTrace() with SLF4J log.error() in ErrorResourceSerializer
+4. [H3] Lock CORS to explicit origins via application.properties
+5. [H4] Add max request size config
+
+PHASE 2 - Spring Correctness (2-3 days)
+-----------------------------------------
+6. [H1] Migrate WebSecurityConfigurerAdapter to SecurityFilterChain
+7. [H2] Add @Transactional to all write service methods
+8. [M2] Switch field injection to constructor injection in validators and filter
+9. [M6] Replace @Component with @Service/@Repository where appropriate
+
+PHASE 3 - API & Error Handling (2 days)
+-----------------------------------------
+10. [M1] Replace anonymous HashMap response objects with proper DTOs/records
+11. [M5] Add message constructors to exception classes
+12. [M4] Fix Optional misuse in query services
+
+PHASE 4 - Performance (1-2 days)
+----------------------------------
+13. [M3] Batch the fillExtraInfo() queries
+14. [M7] Unify pagination implementations
+
+PHASE 5 - Modernization (3-5 days, higher risk)
+-------------------------------------------------
+15. [L1] Migrate Joda-Time to java.time
+16. [M9] Upgrade Spring Boot 2.6 to 3.x (requires Java 17+, javax to jakarta, security migration)
+17. [M8] Add spring-boot-starter-actuator
+18. [L3] Delete Util.java, inline String.isBlank()
+
+=====================================
+SUMMARY
+=====================================
+Critical/High: 7
+Medium:        10
+Low:            6
+Total:         23
+
+Highest ROI: Phase 1 (security) + Phase 2 (Spring correctness)
+Highest risk: Phase 5 (Spring Boot 3.x upgrade) - ensure full test coverage first

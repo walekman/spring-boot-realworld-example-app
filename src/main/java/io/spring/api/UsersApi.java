@@ -4,6 +4,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 import com.fasterxml.jackson.annotation.JsonRootName;
 import io.spring.api.exception.InvalidAuthenticationException;
+import io.spring.api.exception.ResourceNotFoundException;
 import io.spring.application.UserQueryService;
 import io.spring.application.data.UserData;
 import io.spring.application.data.UserWithToken;
@@ -39,7 +40,7 @@ public class UsersApi {
   @RequestMapping(path = "/users", method = POST)
   public ResponseEntity createUser(@Valid @RequestBody RegisterParam registerParam) {
     User user = userService.createUser(registerParam);
-    UserData userData = userQueryService.findById(user.getId()).get();
+    UserData userData = userQueryService.findById(user.getId()).orElseThrow(ResourceNotFoundException::new);
     return ResponseEntity.status(201)
         .body(userResponse(new UserWithToken(userData, jwtService.toToken(user))));
   }
@@ -49,7 +50,7 @@ public class UsersApi {
     Optional<User> optional = userRepository.findByEmail(loginParam.getEmail());
     if (optional.isPresent()
         && passwordEncoder.matches(loginParam.getPassword(), optional.get().getPassword())) {
-      UserData userData = userQueryService.findById(optional.get().getId()).get();
+      UserData userData = userQueryService.findById(optional.get().getId()).orElseThrow(ResourceNotFoundException::new);
       return ResponseEntity.ok(
           userResponse(new UserWithToken(userData, jwtService.toToken(optional.get()))));
     } else {
