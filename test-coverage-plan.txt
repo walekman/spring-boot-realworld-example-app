@@ -1,0 +1,146 @@
+start TEST COVERAGE IMPROVEMENT PLAN
+================================
+Generated: 2026-05-18
+
+Current state: 33% overall / ~58% excluding generated GraphQL types
+Target:        70%+ instruction, 50%+ branch (excluding graphql.types)
+
+=====================================
+PHASE 1 - Quick wins: unit tests for untested application logic
+Est. coverage gain: +5% | Effort: 0.5 day
+=====================================
+
+Fast, isolated unit tests with Mockito. No DB needed.
+
+Tests to create:
+- DuplicatedArticleValidatorTest
+    isValid() — slug found (returns false) / not found (returns true)
+
+- ArticleCommandServiceTest
+    createArticle() and updateArticle() — happy path + mocked repo
+
+- SecurityUtilTest (graphql package)
+    getCurrentUser() — authenticated user / AnonymousAuthenticationToken branch
+
+=====================================
+PHASE 2 - Branch coverage on query services
+Est. coverage gain: +8% | Effort: 1 day
+=====================================
+
+Extend existing ArticleQueryServiceTest and CommentQueryServiceTest
+using the DbTestBase + TestHelper integration pattern already in place.
+
+ArticleQueryService gaps:
+- findById / findBySlug with null user (skips fillExtraInfo) and non-null user
+- findRecentArticles where articleIds is empty (returns count=0, empty list)
+- findRecentArticlesWithCursor — hasExtra=true branch, direction=PREV (list reversal)
+- findUserFeed / findUserFeedWithCursor — empty follow list, hasExtra, direction reversal
+- setIsFavorite / setIsFollowingAuthor — article where author is/isn't followed,
+  article that is/isn't favorited
+
+CommentQueryService gaps:
+- findById — returns empty when commentData == null
+- findByArticleId — user == null skips following-set; empty list case
+- findByArticleIdWithCursor — same pagination branches as article service
+
+=====================================
+PHASE 3 - GraphQL layer: datafetchers
+Est. coverage gain: +12% | Effort: 2 days
+=====================================
+
+No existing GraphQL tests. Use DgsQueryExecutor-based integration test class,
+mocking service dependencies. Follow pattern from ArticlesApiTest but with DGS executor.
+
+Tests to create (priority order):
+- ArticleDatafetcherTest
+    getArticles(), findArticleBySlug(), getFeed()
+    happy path + unauthenticated
+
+- ArticleMutationTest
+    createArticle(), updateArticle(), deleteArticle()
+    happy path + auth failure
+
+- TagDatafetcherTest
+    getTags() — trivial, 1 test
+
+- MeDatafetcherTest
+    getMe() — authenticated + anonymous branches
+
+- ProfileDatafetcherTest
+    queryProfile() — existing user + not found
+
+=====================================
+PHASE 4 - GraphQL layer: social features
+Est. coverage gain: +8% | Effort: 2 days
+=====================================
+
+Tests to create:
+- RelationMutationTest
+    follow(), unfollow() — success + user not found
+
+- ArticleMutationFavoriteTest
+    favoriteArticle(), unfavoriteArticle() — Optional.ifPresent branch
+
+- CommentDatafetcherTest
+    articleComments() — pagination branches (hasExtra, PREV direction)
+
+- CommentMutationTest
+    createComment(), removeComment() — happy path + unauthorized
+
+- UserMutationTest
+    createUser(), login(), updateUser()
+    success + ConstraintViolationException handling
+
+=====================================
+PHASE 5 - Exception handling & remaining gaps
+Est. coverage gain: +4% | Effort: 0.5 day
+=====================================
+
+Tests to create:
+- GraphQLCustomizeExceptionHandlerTest
+    onException() routing
+    getErrorsAsData() field path extraction
+
+- ResourceNotFoundExceptionTest
+    Once message constructors added (refactoring plan Phase 3 item M5)
+
+- UserWithTokenTest
+    Constructor field mapping from UserData
+
+=====================================
+WHAT TO SKIP
+=====================================
+
+- io.spring.graphql.types — auto-generated DGS code, exclude from JaCoCo
+- Pure DTO classes (ArticleDataList, ProfileData, ArticleFavoriteCount) — no logic
+- RealWorldApplication main class — standard Spring Boot boilerplate
+
+Add to build.gradle to exclude generated types from JaCoCo report:
+
+    jacocoTestReport {
+        afterEvaluate {
+            classDirectories.setFrom(files(classDirectories.files.collect {
+                fileTree(dir: it, excludes: [
+                    'io/spring/graphql/types/**',
+                    'io/spring/graphql/DgsConstants*'
+                ])
+            }))
+        }
+    }
+
+=====================================
+SUMMARY
+=====================================
+
+Phase | New tests | Coverage gain | Effort
+------+-----------+---------------+----------
+1     | ~8        | +5%           | 0.5 day
+2     | ~15       | +8%           | 1 day
+3     | ~20       | +12%          | 2 days
+4     | ~25       | +8%           | 2 days
+5     | ~8        | +4%           | 0.5 day
+------+-----------+---------------+----------
+Total | ~76       | ~37%          | ~6 days
+
+Projected coverage after all phases:
+  ~70% instruction / ~55% branch (excluding generated types)
