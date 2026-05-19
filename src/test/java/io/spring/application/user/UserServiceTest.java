@@ -31,7 +31,7 @@ class UserServiceTest {
 
   @Test
   void updateUser_shouldStoreBCryptHash_whenPasswordProvided() {
-    String newPassword = "newPlaintext";
+    String newPassword = "new Plaintext";
     User user = new User("test@test.com", "testuser", PASSWORD_HASH, "", "");
     UpdateUserParam param = UpdateUserParam.builder().password(newPassword).build();
 
