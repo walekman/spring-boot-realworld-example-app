@@ -29,7 +29,7 @@ public class GraphQLCustomizeExceptionHandler implements DataFetcherExceptionHan
       new DefaultDataFetcherExceptionHandler();
 
   @Override
-  public CompletableFuture<DataFetcherExceptionHandlerResult> onException(
+  public CompletableFuture<DataFetcherExceptionHandlerResult> handleException(
       DataFetcherExceptionHandlerParameters handlerParameters) {
     if (handlerParameters.getException() instanceof InvalidAuthenticationException) {
       GraphQLError graphqlError =
@@ -66,7 +66,7 @@ public class GraphQLCustomizeExceptionHandler implements DataFetcherExceptionHan
       return CompletableFuture.completedFuture(
           DataFetcherExceptionHandlerResult.newResult().error(graphqlError).build());
     } else {
-      return defaultHandler.onException(handlerParameters);
+      return defaultHandler.handleException(handlerParameters);
     }
   }
 
