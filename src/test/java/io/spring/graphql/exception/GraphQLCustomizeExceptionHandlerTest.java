@@ -13,11 +13,11 @@ import io.spring.api.exception.InvalidAuthenticationException;
 import java.lang.annotation.Annotation;
 import java.util.Collections;
 import java.util.Set;
-import javax.validation.ConstraintViolation;
-import javax.validation.ConstraintViolationException;
-import javax.validation.Path;
-import javax.validation.constraints.NotBlank;
-import javax.validation.metadata.ConstraintDescriptor;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.metadata.ConstraintDescriptor;
 import org.junit.jupiter.api.Test;
 
 class GraphQLCustomizeExceptionHandlerTest {
@@ -31,7 +31,7 @@ class GraphQLCustomizeExceptionHandlerTest {
     when(params.getException()).thenReturn(new InvalidAuthenticationException());
     when(params.getPath()).thenReturn(ResultPath.rootPath());
 
-    DataFetcherExceptionHandlerResult result = handler.onException(params);
+    DataFetcherExceptionHandlerResult result = handler.handleException(params).join();
 
     assertEquals(1, result.getErrors().size());
     assertEquals("invalid email or password", result.getErrors().get(0).getMessage());
@@ -48,7 +48,7 @@ class GraphQLCustomizeExceptionHandlerTest {
     when(params.getException()).thenReturn(cve);
     when(params.getPath()).thenReturn(ResultPath.rootPath());
 
-    DataFetcherExceptionHandlerResult result = handler.onException(params);
+    DataFetcherExceptionHandlerResult result = handler.handleException(params).join();
 
     assertEquals(1, result.getErrors().size());
     assertEquals("constraint violation", result.getErrors().get(0).getMessage());
@@ -61,7 +61,7 @@ class GraphQLCustomizeExceptionHandlerTest {
     when(params.getException()).thenReturn(new RuntimeException("unexpected"));
     when(params.getPath()).thenReturn(ResultPath.rootPath());
 
-    DataFetcherExceptionHandlerResult result = handler.onException(params);
+    DataFetcherExceptionHandlerResult result = handler.handleException(params).join();
 
     assertNotNull(result);
   }
