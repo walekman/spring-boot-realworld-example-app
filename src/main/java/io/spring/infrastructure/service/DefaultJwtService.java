@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.spring.core.service.JwtService;
 import io.spring.core.user.User;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Optional;
 import javax.crypto.SecretKey;
@@ -22,7 +23,7 @@ public class DefaultJwtService implements JwtService {
   public DefaultJwtService(
       @Value("${jwt.secret}") String secret, @Value("${jwt.sessionTime}") int sessionTime) {
     this.sessionTime = sessionTime;
-    this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
+    this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
   }
 
   @Override
