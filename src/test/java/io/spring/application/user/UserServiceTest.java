@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 class UserServiceTest {
 
+  // BCrypt hash of "oldPassword"
   private static final String PASSWORD_HASH =
       "$2a$10$vV9wgU.x2x/F0Q5G1H6mKOXEbYzR9h8r11nQEoIB7c0.0KUpOSCf2";
 

@@ -12,6 +12,7 @@ import io.spring.application.user.UserService;
 import io.spring.core.user.User;
 import io.spring.core.user.UserRepository;
 import io.spring.graphql.DgsConstants.MUTATION;
+import io.spring.graphql.exception.AuthenticationException;
 import io.spring.graphql.exception.GraphQLCustomizeExceptionHandler;
 import io.spring.graphql.types.CreateUserInput;
 import io.spring.graphql.types.UpdateUserInput;
@@ -20,7 +21,6 @@ import io.spring.graphql.types.UserResult;
 import java.util.Optional;
 import javax.validation.ConstraintViolationException;
 import lombok.AllArgsConstructor;
-import io.spring.graphql.exception.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @DgsComponent
