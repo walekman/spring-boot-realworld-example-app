@@ -24,6 +24,7 @@ import io.spring.graphql.DgsConstants.QUERY;
 import io.spring.graphql.types.Article;
 import io.spring.graphql.types.ArticleEdge;
 import io.spring.graphql.types.ArticlesConnection;
+import io.spring.graphql.types.PageInfo;
 import io.spring.graphql.types.Profile;
 import java.util.HashMap;
 import java.util.stream.Collectors;
@@ -62,7 +63,7 @@ public class ArticleDatafetcher {
               current,
               new CursorPageParameter<>(DateTimeCursor.parse(before), last, Direction.PREV));
     }
-    io.spring.graphql.types.PageInfo pageInfo = buildArticlePageInfo(articles);
+    PageInfo pageInfo = buildArticlePageInfo(articles);
     ArticlesConnection articlesConnection =
         ArticlesConnection.newBuilder()
             .pageInfo(pageInfo)
@@ -112,7 +113,7 @@ public class ArticleDatafetcher {
               target,
               new CursorPageParameter<>(DateTimeCursor.parse(before), last, Direction.PREV));
     }
-    io.spring.graphql.types.PageInfo pageInfo = buildArticlePageInfo(articles);
+    PageInfo pageInfo = buildArticlePageInfo(articles);
     ArticlesConnection articlesConnection =
         ArticlesConnection.newBuilder()
             .pageInfo(pageInfo)
@@ -165,7 +166,7 @@ public class ArticleDatafetcher {
               new CursorPageParameter<>(DateTimeCursor.parse(before), last, Direction.PREV),
               current);
     }
-    io.spring.graphql.types.PageInfo pageInfo = buildArticlePageInfo(articles);
+    PageInfo pageInfo = buildArticlePageInfo(articles);
 
     ArticlesConnection articlesConnection =
         ArticlesConnection.newBuilder()
@@ -219,7 +220,7 @@ public class ArticleDatafetcher {
               new CursorPageParameter<>(DateTimeCursor.parse(before), last, Direction.PREV),
               current);
     }
-    io.spring.graphql.types.PageInfo pageInfo = buildArticlePageInfo(articles);
+    PageInfo pageInfo = buildArticlePageInfo(articles);
     ArticlesConnection articlesConnection =
         ArticlesConnection.newBuilder()
             .pageInfo(pageInfo)
@@ -274,7 +275,7 @@ public class ArticleDatafetcher {
               new CursorPageParameter<>(DateTimeCursor.parse(before), last, Direction.PREV),
               current);
     }
-    io.spring.graphql.types.PageInfo pageInfo = buildArticlePageInfo(articles);
+    PageInfo pageInfo = buildArticlePageInfo(articles);
     ArticlesConnection articlesConnection =
         ArticlesConnection.newBuilder()
             .pageInfo(pageInfo)
@@ -354,8 +355,8 @@ public class ArticleDatafetcher {
         .build();
   }
 
-  private io.spring.graphql.types.PageInfo buildArticlePageInfo(CursorPager<ArticleData> articles) {
-    return io.spring.graphql.types.PageInfo.newBuilder()
+  private PageInfo buildArticlePageInfo(CursorPager<ArticleData> articles) {
+    return PageInfo.newBuilder()
         .startCursor(
             articles.getStartCursor() == null ? null : articles.getStartCursor().toString())
         .endCursor(

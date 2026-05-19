@@ -19,6 +19,7 @@ import io.spring.graphql.types.Article;
 import io.spring.graphql.types.Comment;
 import io.spring.graphql.types.CommentEdge;
 import io.spring.graphql.types.CommentsConnection;
+import io.spring.graphql.types.PageInfo;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -76,7 +77,7 @@ public class CommentDatafetcher {
               current,
               new CursorPageParameter<>(DateTimeCursor.parse(before), last, Direction.PREV));
     }
-    io.spring.graphql.types.PageInfo pageInfo = buildCommentPageInfo(comments);
+    PageInfo pageInfo = buildCommentPageInfo(comments);
     CommentsConnection result =
         CommentsConnection.newBuilder()
             .pageInfo(pageInfo)
@@ -97,8 +98,8 @@ public class CommentDatafetcher {
         .build();
   }
 
-  private io.spring.graphql.types.PageInfo buildCommentPageInfo(CursorPager<CommentData> comments) {
-    return io.spring.graphql.types.PageInfo.newBuilder()
+  private PageInfo buildCommentPageInfo(CursorPager<CommentData> comments) {
+    return PageInfo.newBuilder()
         .startCursor(
             comments.getStartCursor() == null ? null : comments.getStartCursor().toString())
         .endCursor(

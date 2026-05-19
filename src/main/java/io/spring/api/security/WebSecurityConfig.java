@@ -63,7 +63,9 @@ public class WebSecurityConfig {
     final CorsConfiguration configuration = new CorsConfiguration();
     configuration.setAllowedOrigins(allowedOrigins);
     configuration.setAllowedMethods(List.of("HEAD", "GET", "POST", "PUT", "DELETE", "PATCH"));
+    // false: API is stateless (JWT), no cookies — avoids preflight complexity
     configuration.setAllowCredentials(false);
+    // Explicit allowlist: Authorization for JWT, Cache-Control and Content-Type for REST clients
     configuration.setAllowedHeaders(List.of("Authorization", "Cache-Control", "Content-Type"));
     final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);
