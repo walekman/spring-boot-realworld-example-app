@@ -6,6 +6,7 @@ import io.spring.core.user.User;
 import javax.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 @Service
@@ -15,6 +16,7 @@ public class ArticleCommandService {
 
   private ArticleRepository articleRepository;
 
+  @Transactional
   public Article createArticle(@Valid NewArticleParam newArticleParam, User creator) {
     Article article =
         new Article(
@@ -27,6 +29,7 @@ public class ArticleCommandService {
     return article;
   }
 
+  @Transactional
   public Article updateArticle(Article article, @Valid UpdateArticleParam updateArticleParam) {
     article.update(
         updateArticleParam.getTitle(),

@@ -1,7 +1,6 @@
 package io.spring.graphql;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -130,11 +129,11 @@ class UserMutationTest {
   }
 
   @Test
-  void should_return_null_when_updating_user_unauthenticated() {
+  void should_throw_when_updating_user_unauthenticated() {
     UpdateUserInput input = UpdateUserInput.newBuilder().email("x@test.com").build();
 
-    DataFetcherResult<UserPayload> result = userMutation.updateUser(input);
-
-    assertNull(result);
+    assertThrows(
+        io.spring.graphql.exception.AuthenticationException.class,
+        () -> userMutation.updateUser(input));
   }
 }

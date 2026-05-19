@@ -12,6 +12,7 @@ import io.spring.application.user.UserService;
 import io.spring.core.user.User;
 import io.spring.core.user.UserRepository;
 import io.spring.graphql.DgsConstants.MUTATION;
+import io.spring.graphql.exception.AuthenticationException;
 import io.spring.graphql.exception.GraphQLCustomizeExceptionHandler;
 import io.spring.graphql.types.CreateUserInput;
 import io.spring.graphql.types.UpdateUserInput;
@@ -20,9 +21,6 @@ import io.spring.graphql.types.UserResult;
 import java.util.Optional;
 import javax.validation.ConstraintViolationException;
 import lombok.AllArgsConstructor;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @DgsComponent
@@ -69,12 +67,7 @@ public class UserMutation {
   @DgsData(parentType = MUTATION.TYPE_NAME, field = MUTATION.UpdateUser)
   public DataFetcherResult<UserPayload> updateUser(
       @InputArgument("changes") UpdateUserInput updateUserInput) {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (authentication instanceof AnonymousAuthenticationToken
-        || authentication.getPrincipal() == null) {
-      return null;
-    }
-    io.spring.core.user.User currentUser = (io.spring.core.user.User) authentication.getPrincipal();
+    User currentUser = SecurityUtil.getCurrentUser().orElseThrow(AuthenticationException::new);
     UpdateUserParam param =
         UpdateUserParam.builder()
             .username(updateUserInput.getUsername())
