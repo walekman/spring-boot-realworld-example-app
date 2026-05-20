@@ -27,5 +27,4 @@ nbdist/
 
 ### Local dev ###
 .claude/
-CLAUDE.md
 plan*.txt
