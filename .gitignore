@@ -26,6 +26,4 @@ nbdist/
 .nb-gradle/
 
 ### Local dev ###
-.claude/
-CLAUDE.md
-plan*.txt
+.claude/settings.local.json
