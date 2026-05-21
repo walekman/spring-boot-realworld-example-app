@@ -22,7 +22,7 @@ public class CommentQueryService {
 
   public Optional<CommentData> findById(String id, User user) {
     CommentData commentData = commentReadService.findById(id);
-    if (commentData != null) {
+    if (commentData != null && user != null) {
       commentData
           .getProfileData()
           .setFollowing(
