@@ -94,7 +94,7 @@ P2-1 | WebSecurityConfigurerAdapter is deprecated           [both plans] [DONE �
   Note:   Spring Security 6 (included in Spring Boot 3.x) removed
           WebSecurityConfigurerAdapter entirely. Migrated as part of PR #5.
 
-P2-2 | JwtTokenFilter uses field @Autowired on a non-component class  [both plans] [DONE]
+P2-2 | JwtTokenFilter uses field @Autowired on a non-component class  [both plans] [DONE — Phase 3]
   File:   src/main/java/io/spring/api/security/JwtTokenFilter.java
   Issue:  @SuppressWarnings("SpringJavaAutowiringInspection") suppresses a
           real problem. Field injection on a manually-constructed object is
@@ -104,7 +104,7 @@ P2-2 | JwtTokenFilter uses field @Autowired on a non-component class  [both plan
           Remove @Autowired fields and @SuppressWarnings.
   Effort: XS
 
-P2-3 | UpdateUserConstraint/Validator defined inside UserService.java  [plan.txt M2 / plan2 #7]
+P2-3 | UpdateUserConstraint/Validator defined inside UserService.java  [plan.txt M2 / plan2 #7] [DONE — Phase 3]
   File:   src/main/java/io/spring/application/user/UserService.java
   Issue:  Package-private annotation and validator class co-located with the
           service. Inconsistent with DuplicatedEmailValidator pattern; requires
@@ -114,7 +114,7 @@ P2-3 | UpdateUserConstraint/Validator defined inside UserService.java  [plan.txt
             application/user/UpdateUserValidator.java   (public class, constructor injection)
   Effort: S
 
-P2-4 | Anonymous HashMap used as response body              [plan.txt M1]
+P2-4 | Anonymous HashMap used as response body              [plan.txt M1] [DONE — Phase 3]
   Files:  ArticlesApi.java, UsersApi.java, ArticleApi.java, CommentsApi.java, etc.
   Issue:  Double-brace init (new HashMap<>() {{ put(...); }}) creates anonymous
           subclasses. Pattern is fragile, leaks outer class references, and
@@ -123,7 +123,7 @@ P2-4 | Anonymous HashMap used as response body              [plan.txt M1]
           Or use Map.of(...) for immutable single-use wrappers.
   Effort: M
 
-P2-5 | Optional misuse — null check defeats Optional's purpose  [plan.txt M4]
+P2-5 | Optional misuse — null check defeats Optional's purpose  [plan.txt M4] [DONE — Phase 3]
   Files:  src/main/java/io/spring/application/ArticleQueryService.java
           src/main/java/io/spring/application/CommentQueryService.java
   Issue:  Pattern: if (x == null) return Optional.empty(); else return Optional.of(x);
@@ -132,7 +132,7 @@ P2-5 | Optional misuse — null check defeats Optional's purpose  [plan.txt M4]
           then chain .map() for conditional enrichment instead of if/else.
   Effort: XS
 
-P2-6 | @Component used where @Service or @Repository is correct  [plan.txt M6]
+P2-6 | @Component used where @Service or @Repository is correct  [plan.txt M6] [DONE — Phase 3]
   Files:  src/main/java/io/spring/application/ProfileQueryService.java
           src/main/java/io/spring/infrastructure/repository/MyBatisCommentRepository.java
   Issue:  @Service enables transaction proxy; @Repository enables exception
@@ -142,7 +142,7 @@ P2-6 | @Component used where @Service or @Repository is correct  [plan.txt M6]
           MyBatisCommentRepository → @Repository
   Effort: XS
 
-P2-7 | Exception classes carry no detail message            [plan.txt M5]
+P2-7 | Exception classes carry no detail message            [plan.txt M5] [DONE — Phase 3]
   Files:  src/main/java/io/spring/api/exception/ResourceNotFoundException.java
           src/main/java/io/spring/api/exception/NoAuthorizationException.java
   Issue:  Thrown with no context; stack traces and logs contain no information
@@ -291,13 +291,13 @@ PHASE 5 — Spring Boot 3.x Upgrade (DONE — PR #5, executed out of order)
   P3-2  Upgrade to Spring Boot 3.x (Java 21, jakarta ns)  [DONE]
   P2-1  SecurityFilterChain migration (side effect of ^)   [DONE]
 
-PHASE 3 — Spring Correctness (NEXT — 2-3 days, single PR)
-  P2-2  Constructor-inject JwtTokenFilter
-  P2-3  Extract UpdateUserConstraint/Validator to own files
-  P2-4  Replace anonymous HashMap response objects with typed DTOs
-  P2-5  Fix Optional misuse in query services
-  P2-6  Fix @Component → @Service/@Repository stereotypes
-  P2-7  Add messages to exception classes
+PHASE 3 — Spring Correctness (DONE — Phase 3 PR)
+  P2-2  Constructor-inject JwtTokenFilter                    [DONE]
+  P2-3  Extract UpdateUserConstraint/Validator to own files  [DONE]
+  P2-4  Replace anonymous HashMap response objects with Map.of [DONE]
+  P2-5  Fix Optional misuse in query services                [DONE]
+  P2-6  Fix @Component → @Service/@Repository stereotypes   [DONE]
+  P2-7  Add messages to exception classes                    [DONE]
 
 PHASE 4 — Modernization (3-5 days, higher risk)
   P3-1  Replace Joda-Time with java.time
@@ -321,10 +321,10 @@ SUMMARY
 =======================================================
 P0 (security):       2  items  — all done
 P1 (reliability):    4  items  — all done
-P2 (design):         7  items  — 1 done (P2-1), 6 open
+P2 (design):         7  items  — all done
 P3 (modernization):  8  items  — 1 done (P3-2), 7 open
 P4 (polish):         6  items  — 0 done
-Total:              27  items  — 7 done, 20 open
+Total:              27  items  — 14 done, 13 open
 
-Done:  P0-1, P0-2, P1-1, P1-2, P1-3, P1-4, P2-1, P3-2
-Next:  Phase 3 (P2-2 through P2-7)
+Done:  P0-1, P0-2, P1-1, P1-2, P1-3, P1-4, P2-1, P2-2, P2-3, P2-4, P2-5, P2-6, P2-7, P3-2
+Next:  Phase 4 (P3-1 through P3-8, P4-6) + Opportunistic P4 items

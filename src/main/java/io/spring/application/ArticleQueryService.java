@@ -28,27 +28,15 @@ public class ArticleQueryService {
   private ArticleFavoritesReadService articleFavoritesReadService;
 
   public Optional<ArticleData> findById(String id, User user) {
-    ArticleData articleData = articleReadService.findById(id);
-    if (articleData == null) {
-      return Optional.empty();
-    } else {
-      if (user != null) {
-        fillExtraInfo(id, user, articleData);
-      }
-      return Optional.of(articleData);
-    }
+    ArticleData data = articleReadService.findById(id);
+    if (data != null && user != null) fillExtraInfo(id, user, data);
+    return Optional.ofNullable(data);
   }
 
   public Optional<ArticleData> findBySlug(String slug, User user) {
-    ArticleData articleData = articleReadService.findBySlug(slug);
-    if (articleData == null) {
-      return Optional.empty();
-    } else {
-      if (user != null) {
-        fillExtraInfo(articleData.getId(), user, articleData);
-      }
-      return Optional.of(articleData);
-    }
+    ArticleData data = articleReadService.findBySlug(slug);
+    if (data != null && user != null) fillExtraInfo(data.getId(), user, data);
+    return Optional.ofNullable(data);
   }
 
   public CursorPager<ArticleData> findRecentArticlesWithCursor(
