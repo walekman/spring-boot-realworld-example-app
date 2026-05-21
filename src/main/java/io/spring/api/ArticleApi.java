@@ -10,7 +10,6 @@ import io.spring.core.article.Article;
 import io.spring.core.article.ArticleRepository;
 import io.spring.core.service.AuthorizationService;
 import io.spring.core.user.User;
-import java.util.HashMap;
 import java.util.Map;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -79,10 +78,6 @@ public class ArticleApi {
   }
 
   private Map<String, Object> articleResponse(ArticleData articleData) {
-    return new HashMap<String, Object>() {
-      {
-        put("article", articleData);
-      }
-    };
+    return Map.of("article", articleData);
   }
 }

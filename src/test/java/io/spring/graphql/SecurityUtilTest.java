@@ -21,6 +21,15 @@ class SecurityUtilTest {
   }
 
   @Test
+  void should_return_empty_when_no_authentication_in_context() {
+    SecurityContextHolder.clearContext();
+
+    Optional<User> result = SecurityUtil.getCurrentUser();
+
+    assertTrue(result.isEmpty());
+  }
+
+  @Test
   void should_return_empty_when_authentication_is_anonymous() {
     AnonymousAuthenticationToken auth =
         new AnonymousAuthenticationToken(
