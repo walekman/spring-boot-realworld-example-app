@@ -1,5 +1,7 @@
 package io.spring.api.security;
 
+import io.spring.core.service.JwtService;
+import io.spring.core.user.UserRepository;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -28,8 +30,8 @@ public class WebSecurityConfig {
   private List<String> allowedOrigins;
 
   @Bean
-  public JwtTokenFilter jwtTokenFilter() {
-    return new JwtTokenFilter();
+  public JwtTokenFilter jwtTokenFilter(JwtService jwtService, UserRepository userRepository) {
+    return new JwtTokenFilter(jwtService, userRepository);
   }
 
   @Bean
@@ -38,7 +40,7 @@ public class WebSecurityConfig {
   }
 
   @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain filterChain(HttpSecurity http, JwtTokenFilter jwtTokenFilter) throws Exception {
     http
         .csrf(csrf -> csrf.disable())
         .cors(withDefaults())
@@ -49,12 +51,14 @@ public class WebSecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS).permitAll()
             .requestMatchers("/graphiql").permitAll()
+            // /graphql is permitAll so unauthenticated queries (articles, tags) work.
+            // Auth for mutations is enforced per-resolver via SecurityUtil.getCurrentUser().
             .requestMatchers("/graphql").permitAll()
             .requestMatchers(HttpMethod.GET, "/articles/feed").authenticated()
             .requestMatchers(HttpMethod.POST, "/users", "/users/login").permitAll()
             .requestMatchers(HttpMethod.GET, "/articles/**", "/profiles/**", "/tags").permitAll()
             .anyRequest().authenticated())
-        .addFilterBefore(jwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
     return http.build();
   }
 

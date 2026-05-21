@@ -1,6 +1,7 @@
 SPRING BOOT REALWORLD APP — MERGED REFACTORING PLAN
 =====================================================
 Generated: 2026-05-19
+Updated:   2026-05-21 — reflects actual execution state
 Source:    plan.txt + plan2.txt (merged, duplicates resolved, incorrect item L5 removed)
 
 Total items: 27
@@ -14,9 +15,8 @@ P4 (polish):        6
 P0 — SECURITY (Fix before any other work)
 =======================================================
 
-P0-1 | Plaintext password stored on user update              [NEW — plan2 only]
-  File:   src/main/java/io/spring/application/user/UserService.java:50
-          src/main/java/io/spring/core/user/User.java:39
+P0-1 | Plaintext password stored on user update              [NEW — plan2 only] [DONE — PR #3]
+  File:   src/main/java/io/spring/application/user/UserService.java
   Issue:  updateUser() passes raw UpdateUserParam.getPassword() to User.update()
           with no encoding. A user who changes their password via PUT /user gets
           a bcrypt-less plaintext string written to the DB.
@@ -27,29 +27,32 @@ P0-1 | Plaintext password stored on user update              [NEW — plan2 only
           Pass encodedPassword (or null/empty) to user.update().
   Effort: XS
 
-P0-2 | GraphQL endpoint fully unauthenticated               [NEW — plan2 only]
-  File:   src/main/java/io/spring/api/security/WebSecurityConfig.java:56-57
-  Issue:  .antMatchers("/graphql").permitAll() bypasses all REST auth rules.
+P0-2 | GraphQL endpoint fully unauthenticated               [NEW — plan2 only] [DONE]
+  File:   src/main/java/io/spring/api/security/WebSecurityConfig.java
+          src/main/java/io/spring/graphql/SecurityUtil.java
+  Issue:  .requestMatchers("/graphql").permitAll() bypasses all REST auth rules.
           Mutations for creating articles, updating users, and following are
           accessible without a token.
-  Fix:    Remove permitAll() for /graphql. Enforce authentication per-resolver
-          by checking SecurityUtil.getCurrentUser() and throwing on empty, or
-          apply a security expression on the /graphql path globally.
+  Fix:    Per-resolver auth via SecurityUtil.getCurrentUser().orElseThrow(AuthenticationException::new)
+          is the correct mechanism for a GraphQL API with mixed auth requirements.
+          All auth-requiring mutations have this check. /graphql stays permitAll() so
+          unauthenticated queries (readArticles, tags, profiles) work without a JWT.
+          Also fixed: SecurityUtil.getCurrentUser() NPE when authentication is null.
   Effort: S
 
 =======================================================
 P1 — RELIABILITY (High-confidence bugs)
 =======================================================
 
-P1-1 | favoritesCount serializes as null instead of 0      [plan2]
-  File:   src/main/java/io/spring/application/ArticleQueryService.java:158
+P1-1 | favoritesCount serializes as null instead of 0      [plan2] [DONE — PR #4]
+  File:   src/main/java/io/spring/application/ArticleQueryService.java
   Issue:  countMap.get(id) returns null for articles with no favorites.
           setFavoritesCount(null) → JSON "favoritesCount": null, violating spec.
   Fix:    countMap.getOrDefault(articleData.getId(), 0)
   Effort: XS
 
-P1-2 | TOCTOU race in MyBatisUserRepository.save()         [NEW — plan2 only]
-  File:   src/main/java/io/spring/infrastructure/repository/MyBatisUserRepository.java:22-26
+P1-2 | TOCTOU race in MyBatisUserRepository.save()         [NEW — plan2 only] [DONE — PR #4]
+  File:   src/main/java/io/spring/infrastructure/repository/MyBatisUserRepository.java
   Issue:  findById() check before insert/update is a check-then-act race and
           adds an unnecessary extra query on every save.
   Fix:    Add userMapper.upsert(user) backed by SQLite
@@ -57,7 +60,7 @@ P1-2 | TOCTOU race in MyBatisUserRepository.save()         [NEW — plan2 only]
           Remove the findById pre-check entirely.
   Effort: S
 
-P1-3 | Article slug silently changes on title update        [NEW — plan2 only]
+P1-3 | Article slug silently changes on title update        [NEW — plan2 only] [DONE — PR #4]
   File:   src/main/java/io/spring/core/article/Article.java (update method)
   Issue:  Updating the title regenerates the slug, breaking existing bookmarks
           and external links. Duplicate-slug validator only runs on creation,
@@ -65,7 +68,7 @@ P1-3 | Article slug silently changes on title update        [NEW — plan2 only]
   Fix:    Freeze slug at creation: remove slug recalculation from Article.update().
   Effort: S
 
-P1-4 | @Transactional missing from write service methods    [plan.txt H2]
+P1-4 | @Transactional missing from write service methods    [plan.txt H2] [DONE — PR #3]
   Files:  src/main/java/io/spring/application/user/UserService.java
           src/main/java/io/spring/application/article/ArticleCommandService.java
   Issue:  Multi-step write operations (create user, create article with tags)
@@ -78,8 +81,8 @@ P1-4 | @Transactional missing from write service methods    [plan.txt H2]
 P2 — DESIGN ANTI-PATTERNS
 =======================================================
 
-P2-1 | WebSecurityConfigurerAdapter is deprecated           [both plans]
-  File:   src/main/java/io/spring/api/security/WebSecurityConfig.java:24
+P2-1 | WebSecurityConfigurerAdapter is deprecated           [both plans] [DONE — forced by PR #5]
+  File:   src/main/java/io/spring/api/security/WebSecurityConfig.java
   Issue:  Deprecated in Spring Security 5.7, removed in Spring Security 6.
           Extending it will be a breaking change on the next major upgrade.
   Fix:    Migrate to SecurityFilterChain @Bean:
@@ -88,19 +91,21 @@ P2-1 | WebSecurityConfigurerAdapter is deprecated           [both plans]
           Drop the extends clause. Register JwtTokenFilter via
           http.addFilterBefore(...) inside the bean method.
   Effort: M
+  Note:   Spring Security 6 (included in Spring Boot 3.x) removed
+          WebSecurityConfigurerAdapter entirely. Migrated as part of PR #5.
 
-P2-2 | JwtTokenFilter uses field @Autowired on a non-component class  [both plans]
-  File:   src/main/java/io/spring/api/security/JwtTokenFilter.java:18-22
+P2-2 | JwtTokenFilter uses field @Autowired on a non-component class  [both plans] [DONE]
+  File:   src/main/java/io/spring/api/security/JwtTokenFilter.java
   Issue:  @SuppressWarnings("SpringJavaAutowiringInspection") suppresses a
           real problem. Field injection on a manually-constructed object is
           fragile and breaks in tests without a running Spring context.
   Fix:    Add constructor: JwtTokenFilter(JwtService jwtService, UserRepository userRepository).
-          In WebSecurityConfig.jwtTokenFilter(), pass both dependencies explicitly.
+          In WebSecurityConfig, pass both dependencies explicitly.
           Remove @Autowired fields and @SuppressWarnings.
   Effort: XS
 
 P2-3 | UpdateUserConstraint/Validator defined inside UserService.java  [plan.txt M2 / plan2 #7]
-  File:   src/main/java/io/spring/application/user/UserService.java:59-106
+  File:   src/main/java/io/spring/application/user/UserService.java
   Issue:  Package-private annotation and validator class co-located with the
           service. Inconsistent with DuplicatedEmailValidator pattern; requires
           field injection workaround.
@@ -119,7 +124,8 @@ P2-4 | Anonymous HashMap used as response body              [plan.txt M1]
   Effort: M
 
 P2-5 | Optional misuse — null check defeats Optional's purpose  [plan.txt M4]
-  Files:  ArticleQueryService.java:30-52, CommentQueryService.java:23-35
+  Files:  src/main/java/io/spring/application/ArticleQueryService.java
+          src/main/java/io/spring/application/CommentQueryService.java
   Issue:  Pattern: if (x == null) return Optional.empty(); else return Optional.of(x);
           This is manual Optional construction. Use Optional.ofNullable(x) instead.
   Fix:    return Optional.ofNullable(articleReadService.findById(id));
@@ -127,7 +133,8 @@ P2-5 | Optional misuse — null check defeats Optional's purpose  [plan.txt M4]
   Effort: XS
 
 P2-6 | @Component used where @Service or @Repository is correct  [plan.txt M6]
-  Files:  ProfileQueryService.java:12, MyBatisCommentRepository.java:10
+  Files:  src/main/java/io/spring/application/ProfileQueryService.java
+          src/main/java/io/spring/infrastructure/repository/MyBatisCommentRepository.java
   Issue:  @Service enables transaction proxy; @Repository enables exception
           translation. @Component provides neither. Using the wrong stereotype
           silently loses these guarantees.
@@ -136,7 +143,8 @@ P2-6 | @Component used where @Service or @Repository is correct  [plan.txt M6]
   Effort: XS
 
 P2-7 | Exception classes carry no detail message            [plan.txt M5]
-  Files:  ResourceNotFoundException.java, NoAuthorizationException.java
+  Files:  src/main/java/io/spring/api/exception/ResourceNotFoundException.java
+          src/main/java/io/spring/api/exception/NoAuthorizationException.java
   Issue:  Thrown with no context; stack traces and logs contain no information
           about which resource was not found or what was unauthorized.
   Fix:    Add String message constructors:
@@ -148,16 +156,17 @@ P3 — MODERNIZATION & DEPENDENCIES
 =======================================================
 
 P3-1 | Joda-Time instead of java.time                      [both plans]
-  Files:  ArticleQueryService.java, CursorPageParameter.java,
-          DateTimeCursor.java, DateTimeHandler.java (MyBatis type handler)
+  Files:  src/main/java/io/spring/application/ArticleQueryService.java
+          src/main/java/io/spring/application/DateTimeCursor.java
+          src/main/java/io/spring/infrastructure/mybatis/DateTimeHandler.java
   Issue:  org.joda.time.DateTime superseded by java.time (JSR-310) since Java 8.
           Dead dependency; complicates Jackson and MyBatis configuration.
   Fix:    Replace DateTime with java.time.Instant (DB timestamps) or LocalDateTime.
           Update MyBatis DateTimeHandler. Remove joda-time from build.gradle.
   Effort: M
 
-P3-2 | Spring Boot 2.6.3 is outdated                       [plan.txt M9]
-  File:   build.gradle:2
+P3-2 | Spring Boot 2.6.3 is outdated                       [plan.txt M9] [DONE — PR #5]
+  File:   build.gradle
   Issue:  Multiple CVEs fixed in later releases; Spring Boot 3.x is the current
           stable line. Upgrade requires Java 17+, javax → jakarta namespace migration,
           and the SecurityFilterChain migration (P2-1).
@@ -166,10 +175,12 @@ P3-2 | Spring Boot 2.6.3 is outdated                       [plan.txt M9]
           3. Upgrade Spring Boot to 3.x.
           4. Run spotless + full test suite; fix javax → jakarta imports.
   Effort: L (do last, after other P2/P3 items)
+  Note:   Upgraded to Spring Boot 3.4.5, Java 21. javax → jakarta migration done.
+          Executed out of order (before Phase 3). P2-1 was resolved as a side effect.
 
 P3-3 | N+1 queries in fillExtraInfo()                      [plan.txt M3]
-  File:   src/main/java/io/spring/application/ArticleQueryService.java:125-183
-  Issue:  Single-article variant (lines 175-183) issues 3 individual queries:
+  File:   src/main/java/io/spring/application/ArticleQueryService.java
+  Issue:  Single-article variant issues 3 individual queries:
           isUserFavorite, articleFavoriteCount, isUserFollowing. For list queries,
           batch reads are already used — but the single-article path is not.
   Fix:    Combine the 3 single-article extra-info queries into one joined read
@@ -177,7 +188,9 @@ P3-3 | N+1 queries in fillExtraInfo()                      [plan.txt M3]
   Effort: S
 
 P3-4 | Two pagination systems, neither DRY                 [plan.txt M7]
-  Files:  Page.java, CursorPageParameter.java, CursorPager.java
+  Files:  src/main/java/io/spring/application/Page.java
+          src/main/java/io/spring/application/CursorPageParameter.java
+          src/main/java/io/spring/application/CursorPager.java
   Issue:  Offset-based (Page) and cursor-based (CursorPageParameter) pagination
           share no abstraction. Limit validation logic is duplicated.
   Fix:    Extract a common PageRequest interface or abstract class with shared
@@ -185,7 +198,7 @@ P3-4 | Two pagination systems, neither DRY                 [plan.txt M7]
   Effort: M
 
 P3-5 | Unused spring-boot-starter-hateoas dependency       [NEW — plan2 only]
-  File:   build.gradle:37
+  File:   build.gradle
   Issue:  No HAL links, RepresentationModel, or @EnableHypermediaSupport exist.
           The dependency injects Jackson auto-configuration that can silently
           interfere with ObjectMapper customization.
@@ -202,7 +215,7 @@ P3-6 | No Spring Actuator                                  [plan.txt M8]
   Effort: XS
 
 P3-7 | Test DB differs from production                     [plan.txt M10]
-  File:   src/test/resources/application-test.properties (or similar)
+  File:   src/test/resources/application-test.properties
   Issue:  SQLite in-memory for tests vs SQLite file for prod. Schema migration
           behaviour, locking, and type handling can differ.
   Fix:    Use the same SQLite JDBC configuration in test as in prod (file-based,
@@ -210,7 +223,9 @@ P3-7 | Test DB differs from production                     [plan.txt M10]
   Effort: M
 
 P3-8 | UUID generated inside entity constructor             [plan.txt L2]
-  Files:  User.java:21, Article.java:40, Comment.java:20
+  Files:  src/main/java/io/spring/core/user/User.java
+          src/main/java/io/spring/core/article/Article.java
+          src/main/java/io/spring/core/comment/Comment.java
   Issue:  UUID.randomUUID() in the constructor makes entities hard to construct
           with a known ID in unit tests.
   Fix:    Accept id as a constructor parameter (allow null → generate internally).
@@ -223,34 +238,35 @@ P4 — POLISH (Fix opportunistically as files are touched)
 =======================================================
 
 P4-1 | Util.isEmpty() duplicates String.isBlank()          [both plans]
-  File:   Util.java (used in User.java, Article.java)
+  File:   src/main/java/io/spring/Util.java
   Fix:    Replace Util.isEmpty(x) with !StringUtils.hasText(x) (Spring utility)
           or Java 11's x == null || x.isBlank(). Delete Util.java.
   Effort: XS
 
 P4-2 | Typo: followdUsers                                  [NEW — plan2 only]
-  File:   ArticleQueryService.java:82, 114
+  File:   src/main/java/io/spring/application/ArticleQueryService.java
   Fix:    Rename variable to followedUsers.
   Effort: XS
 
 P4-3 | .size() == 0 instead of .isEmpty()                  [NEW — plan2 only]
-  File:   ArticleQueryService.java:62, 83, 104
-  Fix:    Replace all three with .isEmpty().
+  File:   src/main/java/io/spring/application/ArticleQueryService.java
+  Fix:    Replace all occurrences with .isEmpty().
   Effort: XS
 
 P4-4 | Hardcoded Chinese error message in GraphQL datafetcher  [NEW — plan2 only]
-  File:   src/main/java/io/spring/graphql/ArticleDatafetcher.java (~line 50)
+  File:   src/main/java/io/spring/graphql/ArticleDatafetcher.java
   Issue:  "first 和 last 必须只存在一个" is not English and not localized.
   Fix:    "Exactly one of 'first' or 'last' must be provided."
   Effort: XS
 
 P4-5 | Inconsistent MAX_LIMIT between pagination classes    [both plans]
-  Files:  Page.java (100), CursorPageParameter.java (1000)
+  Files:  src/main/java/io/spring/application/Page.java (100)
+          src/main/java/io/spring/application/CursorPageParameter.java (1000)
   Fix:    Align to 100, or add a comment explaining the 10x difference.
   Effort: XS
 
 P4-6 | Hardcoded DEBUG logging in application.properties    [plan.txt L6]
-  File:   src/main/resources/application.properties:19-20
+  File:   src/main/resources/application.properties
   Issue:  MyBatis SQL debug logging enabled for all environments.
           Cannot be overridden per environment without code change.
   Fix:    Move logging config to application-dev.properties.
@@ -261,18 +277,21 @@ P4-6 | Hardcoded DEBUG logging in application.properties    [plan.txt L6]
 EXECUTION ORDER (5 Phases)
 =======================================================
 
-PHASE 1 — Security (1 day, single PR) - DONE
-  P0-1  Encode password on update
-  P0-2  Protect /graphql endpoint
-  P1-4  Add @Transactional to write service methods
+PHASE 1 — Security (DONE — PR #3, except P0-2 which was missed)
+  P0-1  Encode password on update                          [DONE]
+  P0-2  Protect /graphql endpoint                          [DONE]
+  P1-4  Add @Transactional to write service methods        [DONE]
 
-PHASE 2 — Reliability (1-2 days, single PR)
-  P1-1  Fix favoritesCount null → 0
-  P1-2  Upsert in MyBatisUserRepository
-  P1-3  Freeze article slug at creation
+PHASE 2 — Reliability (DONE — PR #4)
+  P1-1  Fix favoritesCount null → 0                        [DONE]
+  P1-2  Upsert in MyBatisUserRepository                    [DONE]
+  P1-3  Freeze article slug at creation                    [DONE]
 
-PHASE 3 — Spring Correctness (2-3 days, single PR)
-  P2-1  Migrate WebSecurityConfigurerAdapter → SecurityFilterChain
+PHASE 5 — Spring Boot 3.x Upgrade (DONE — PR #5, executed out of order)
+  P3-2  Upgrade to Spring Boot 3.x (Java 21, jakarta ns)  [DONE]
+  P2-1  SecurityFilterChain migration (side effect of ^)   [DONE]
+
+PHASE 3 — Spring Correctness (NEXT — 2-3 days, single PR)
   P2-2  Constructor-inject JwtTokenFilter
   P2-3  Extract UpdateUserConstraint/Validator to own files
   P2-4  Replace anonymous HashMap response objects with typed DTOs
@@ -290,12 +309,8 @@ PHASE 4 — Modernization (3-5 days, higher risk)
   P3-8  Refactor UUID generation in entity constructors
   P4-6  Move debug logging to application-dev.properties
 
-PHASE 5 — Spring Boot 3.x Upgrade (dedicated branch, requires Phase 3 complete)
-  P3-2  Upgrade to Spring Boot 3.x (Java 17, jakarta namespace)
-  Run full spotless + test suite after upgrade
-
 OPPORTUNISTIC (fix as each file is touched)
-  P4-1  Delete Util.java, inline String1Utils.hasText()
+  P4-1  Delete Util.java, inline StringUtils.hasText()
   P4-2  Rename followdUsers → followedUsers
   P4-3  .size() == 0 → .isEmpty()
   P4-4  Fix Chinese error message in ArticleDatafetcher
@@ -304,12 +319,12 @@ OPPORTUNISTIC (fix as each file is touched)
 =======================================================
 SUMMARY
 =======================================================
-P0 (security):       2  items  — fix first, before any other work
-P1 (reliability):    4  items  — high-confidence bugs
-P2 (design):         7  items  — Spring best practice violations
-P3 (modernization):  8  items  — dependency and upgrade work
-P4 (polish):         6  items  — opportunistic cleanup
-Total:              27  items
+P0 (security):       2  items  — all done
+P1 (reliability):    4  items  — all done
+P2 (design):         7  items  — 1 done (P2-1), 6 open
+P3 (modernization):  8  items  — 1 done (P3-2), 7 open
+P4 (polish):         6  items  — 0 done
+Total:              27  items  — 7 done, 20 open
 
-Highest ROI:  Phase 1 (security) + Phase 2 (reliability)
-Highest risk: Phase 5 (Spring Boot 3 upgrade) — complete test coverage before attempting
+Done:  P0-1, P0-2, P1-1, P1-2, P1-3, P1-4, P2-1, P3-2
+Next:  Phase 3 (P2-2 through P2-7)
